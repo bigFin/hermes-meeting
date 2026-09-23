@@ -1,0 +1,46 @@
+[project]
+name = "hermes-meeting"
+version = "0.1.0"
+description = "Intelligent meeting companion, multi-speaker diarization, and Hermes knowledge-grounded scribe"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "Fin", email = "fin@users.noreply.github.com" }
+]
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.8.0",
+    "pydantic-settings>=2.4.0",
+    "websockets>=13.0",
+    "python-multipart>=0.0.9",
+    "jinja2>=3.1.4",
+    "numpy>=1.26.0",
+    "soundfile>=0.12.1",
+    "httpx>=0.27.0",
+]
+
+[project.optional-dependencies]
+cuda = [
+    "torch>=2.4.0",
+    "nemo-toolkit>=2.0.0",
+]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.6.0",
+]
+
+[project.scripts]
+hermes-meeting = "hermes_meeting.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hermes_meeting"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

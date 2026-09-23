@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hermes Meeting Companion</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-brand">
+      <span class="logo">🎙️</span>
+      <h1>Hermes Meeting</h1>
+      <span class="badge" id="engine-badge">Engine: Ready</span>
+    </div>
+    <div class="header-actions">
+      <button id="theme-btn" class="btn-subtle" title="Toggle theme">🌙</button>
+      <button id="export-obsidian-btn" class="btn-secondary" disabled>Save to Obsidian</button>
+      <button id="download-md-btn" class="btn-secondary" disabled>Download .md</button>
+    </div>
+  </header>
+
+  <main class="main-layout">
+    <!-- Left / Center: Audio Controls & Live Transcript -->
+    <section class="transcript-pane">
+      <div class="control-bar">
+        <div class="record-group">
+          <button id="record-btn" class="btn-primary record-btn">
+            <span class="record-dot"></span>
+            <span id="record-text">Start Recording</span>
+          </button>
+          <span id="timer" class="timer">00:00</span>
+        </div>
+
+        <div class="upload-group">
+          <label for="audio-file-input" class="btn-subtle upload-label">
+            📁 Upload Audio
+          </label>
+          <input type="file" id="audio-file-input" accept="audio/*,.wav,.mp3,.m4a,.ogg,.flac" hidden>
+        </div>
+      </div>
+
+      <!-- Live Waveform canvas -->
+      <canvas id="visualizer" class="visualizer" height="48"></canvas>
+
+      <!-- Speaker Transcript Canvas -->
+      <div class="transcript-container" id="transcript-container">
+        <div class="empty-state" id="empty-state">
+          <p>No meeting in progress. Start recording or upload a voice memo to begin.</p>
+        </div>
+        <div class="utterance-list" id="utterance-list"></div>
+      </div>
+    </section>
+
+    <!-- Right: Real-time Strategist & Knowledge Grounding -->
+    <aside class="sidebar-pane">
+      <div class="sidebar-header">
+        <h3>🧠 Hermes Strategist</h3>
+        <span class="subtle-tag">Live Knowledge</span>
+      </div>
+      <p class="sidebar-desc">Real-time action items and context from your knowledge base as conversation happens.</p>
+      
+      <div class="hints-list" id="hints-list">
+        <div class="hint-card placeholder">
+          <span class="hint-category">System</span>
+          <h4>Waiting for conversation...</h4>
+          <p>Key topics and decisions will automatically trigger notes and checks here.</p>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
