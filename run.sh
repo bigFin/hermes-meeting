@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export PATH="/etc/profiles/per-user/fin/bin:$HOME/.local/bin:$PATH"
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT="${PORT:-${1:-8085}}"
 HOST="${HOST:-0.0.0.0}"
