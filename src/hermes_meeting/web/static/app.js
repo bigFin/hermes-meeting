@@ -22,6 +22,34 @@ const visualizerCanvas = document.getElementById("visualizer");
 const canvasCtx = visualizerCanvas.getContext("2d");
 const profileSelect = document.getElementById("profile-select");
 const sendGatewayBtn = document.getElementById("send-gateway-btn");
+const themeBtn = document.getElementById("theme-btn");
+
+// Theme Handling (Paper vs Blueprint)
+function initTheme() {
+  const saved = localStorage.getItem("hermes-theme") || "paper";
+  document.documentElement.setAttribute("data-theme", saved);
+  updateThemeBtn(saved);
+}
+
+function updateThemeBtn(theme) {
+  if (themeBtn) {
+    themeBtn.textContent = theme === "dark" ? "THEME: BLUEPRINT" : "THEME: PAPER";
+  }
+}
+
+if (themeBtn) {
+  themeBtn.addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme") || "paper";
+    const next = current === "dark" ? "paper" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("hermes-theme", next);
+    updateThemeBtn(next);
+    if (!mediaRecorder || mediaRecorder.state !== "recording") {
+      drawIdleVisualizer();
+    }
+  });
+}
+initTheme();
 
 // Discover installed Hermes profiles on server
 async function loadProfiles() {
@@ -33,7 +61,7 @@ async function loadProfiles() {
         profileSelect.innerHTML = "";
         const groups = {};
         data.profiles.forEach((p) => {
-          const groupName = p.is_remote ? "🌐 Beti Gateway (Avenue Intelligence)" : "🖥️ Local Sika";
+          const groupName = p.is_remote ? "REMOTE: BETI GATEWAY" : "LOCAL: SIKA STATION";
           if (!groups[groupName]) {
             groups[groupName] = document.createElement("optgroup");
             groups[groupName].label = groupName;
@@ -41,7 +69,7 @@ async function loadProfiles() {
           }
           const opt = document.createElement("option");
           opt.value = p.id;
-          opt.textContent = p.name;
+          opt.textContent = p.name.toUpperCase();
           if (p.profile === data.default || p.id === data.default) opt.selected = true;
           groups[groupName].appendChild(opt);
         });
@@ -53,13 +81,46 @@ async function loadProfiles() {
 }
 loadProfiles();
 
-// Setup Visualizer sizing
+// Setup Pointillist Sounder sizing & initial frame
 function resizeCanvas() {
   visualizerCanvas.width = visualizerCanvas.offsetWidth;
   visualizerCanvas.height = visualizerCanvas.offsetHeight;
+  if (!mediaRecorder || mediaRecorder.state !== "recording") {
+    drawIdleVisualizer();
+  }
 }
 window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
+
+function drawIdleVisualizer() {
+  if (!visualizerCanvas) return;
+  const w = visualizerCanvas.width;
+  const h = visualizerCanvas.height;
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+
+  canvasCtx.clearRect(0, 0, w, h);
+
+  // Horizontal dotted graticules
+  canvasCtx.strokeStyle = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+  canvasCtx.lineWidth = 1;
+  canvasCtx.setLineDash([2, 5]);
+  [0.25, 0.5, 0.75].forEach((frac) => {
+    canvasCtx.beginPath();
+    canvasCtx.moveTo(0, h * frac);
+    canvasCtx.lineTo(w, h * frac);
+    canvasCtx.stroke();
+  });
+  canvasCtx.setLineDash([]);
+
+  // Stippled baseline dots
+  const numColumns = 48;
+  const colSpacing = w / numColumns;
+  canvasCtx.fillStyle = isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)";
+  for (let c = 0; c < numColumns; c++) {
+    const x = Math.floor(c * colSpacing + colSpacing / 2);
+    canvasCtx.fillRect(x, h - 6, 2, 2);
+  }
+}
 
 // Recording logic
 recordBtn.addEventListener("click", async () => {
@@ -159,12 +220,13 @@ async function startRecording() {
         audioContext.close();
       }
       if (audioSourceSelect) audioSourceSelect.disabled = false;
+      drawIdleVisualizer();
     };
 
     mediaRecorder.start();
     if (audioSourceSelect) audioSourceSelect.disabled = true;
     recordBtn.classList.add("recording");
-    recordText.textContent = "Stop & Transcribe";
+    recordText.textContent = "STOP & TRANSCRIBE";
 
     recordStartTime = Date.now();
     timerInterval = setInterval(updateTimer, 1000);
@@ -179,8 +241,9 @@ async function startRecording() {
     }
     if (audioSourceSelect) audioSourceSelect.disabled = false;
     recordBtn.classList.remove("recording");
-    recordText.textContent = "Start Recording";
+    recordText.textContent = "START RECORDING";
     clearInterval(timerInterval);
+    drawIdleVisualizer();
     alert(err.message || "Failed to start recording.");
   }
 }
@@ -189,7 +252,7 @@ function stopRecording() {
   if (mediaRecorder && mediaRecorder.state === "recording") {
     mediaRecorder.stop();
     recordBtn.classList.remove("recording");
-    recordText.textContent = "Start Recording";
+    recordText.textContent = "START RECORDING";
     clearInterval(timerInterval);
     if (audioSourceSelect) audioSourceSelect.disabled = false;
   }
@@ -199,28 +262,61 @@ function updateTimer() {
   const elapsed = Math.floor((Date.now() - recordStartTime) / 1000);
   const m = Math.floor(elapsed / 60).toString().padStart(2, "0");
   const s = (elapsed % 60).toString().padStart(2, "0");
-  timerEl.textContent = `${m}:${s}`;
+  timerEl.textContent = `MET ${m}:${s}`;
 }
 
+// Pointillist sounder rendering (discrete ink stipples)
 function drawVisualizer() {
-  if (!analyser) return;
+  if (!analyser || (mediaRecorder && mediaRecorder.state !== "recording")) return;
   requestAnimationFrame(drawVisualizer);
 
   const bufferLength = analyser.frequencyBinCount;
   const dataArray = new Uint8Array(bufferLength);
   analyser.getByteFrequencyData(dataArray);
 
-  canvasCtx.fillStyle = "#272e33";
-  canvasCtx.fillRect(0, 0, visualizerCanvas.width, visualizerCanvas.height);
+  const w = visualizerCanvas.width;
+  const h = visualizerCanvas.height;
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
 
-  const barWidth = (visualizerCanvas.width / bufferLength) * 1.5;
-  let x = 0;
+  canvasCtx.clearRect(0, 0, w, h);
 
-  for (let i = 0; i < bufferLength; i++) {
-    const barHeight = (dataArray[i] / 255) * visualizerCanvas.height;
-    canvasCtx.fillStyle = "#a7c080";
-    canvasCtx.fillRect(x, visualizerCanvas.height - barHeight, barWidth, barHeight);
-    x += barWidth + 2;
+  // Graticules
+  canvasCtx.strokeStyle = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+  canvasCtx.lineWidth = 1;
+  canvasCtx.setLineDash([2, 5]);
+  [0.25, 0.5, 0.75].forEach((frac) => {
+    canvasCtx.beginPath();
+    canvasCtx.moveTo(0, h * frac);
+    canvasCtx.lineTo(w, h * frac);
+    canvasCtx.stroke();
+  });
+  canvasCtx.setLineDash([]);
+
+  const numColumns = 48;
+  const step = Math.max(1, Math.floor(bufferLength / numColumns));
+  const colSpacing = w / numColumns;
+  const dotSpacing = 5;
+  const maxDots = Math.floor((h - 10) / dotSpacing);
+
+  const dotColor = isDark ? "#64b5f6" : "#183e60";
+  const baselineColor = isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)";
+
+  for (let c = 0; c < numColumns; c++) {
+    const freqVal = dataArray[c * step] || 0;
+    const energy = freqVal / 255;
+    const activeDots = Math.floor(energy * maxDots);
+    const x = Math.floor(c * colSpacing + colSpacing / 2);
+
+    for (let d = 0; d <= maxDots; d++) {
+      const y = h - 6 - d * dotSpacing;
+      if (d === 0) {
+        canvasCtx.fillStyle = d <= activeDots ? dotColor : baselineColor;
+        canvasCtx.fillRect(x, y, 2, 2);
+      } else if (d <= activeDots) {
+        canvasCtx.fillStyle = dotColor;
+        canvasCtx.fillRect(x, y, 2, 2);
+      }
+    }
   }
 }
 
@@ -241,7 +337,7 @@ async function uploadAudioFile(file) {
 }
 
 async function sendTranscriptionRequest(formData) {
-  emptyState.innerHTML = "<p>⏳ Transcribing and diarizing speakers with Sika GPU...</p>";
+  emptyState.innerHTML = "<p>[ TRANSCRIBING &amp; DIARIZING WITH SIKA GPU... ]</p>";
   emptyState.style.display = "flex";
   utteranceList.innerHTML = "";
 
@@ -259,7 +355,7 @@ async function sendTranscriptionRequest(formData) {
     renderTranscript(data);
   } catch (err) {
     console.error("Transcription error:", err);
-    emptyState.innerHTML = `<p style="color: var(--accent-red);">Transcription failed: ${err.message}</p>`;
+    emptyState.innerHTML = `<p style="color: var(--stamp-rust);">[ TRANSCRIPTION FAILED: ${err.message} ]</p>`;
   }
 }
 
@@ -269,7 +365,7 @@ function renderTranscript(data) {
   currentTranscriptMarkdown = data.markdown;
 
   if (!data.utterances || data.utterances.length === 0) {
-    emptyState.innerHTML = "<p>No speech detected in audio.</p>";
+    emptyState.innerHTML = "<p>[ NO SPEECH DETECTED IN AUDIO SAMPLE ]</p>";
     emptyState.style.display = "flex";
     return;
   }
@@ -279,31 +375,35 @@ function renderTranscript(data) {
   if (sendGatewayBtn) sendGatewayBtn.disabled = false;
 
   data.utterances.forEach((u) => {
-    const card = document.createElement("div");
-    const spkClass = "speaker-" + (parseInt(u.speaker.replace(/\D/g, "") || 0) % 4);
-    card.className = `utterance-card ${spkClass}`;
+    const row = document.createElement("div");
+    const spkNum = parseInt(u.speaker.replace(/\D/g, "") || 0);
+    const spkClass = "speaker-" + (spkNum % 4);
+    row.className = `log-row ${spkClass}`;
 
     const m = Math.floor(u.start / 60).toString().padStart(2, "0");
     const s = Math.floor(u.start % 60).toString().padStart(2, "0");
+    const spkTag = `[SPK-${spkNum.toString().padStart(2, "0")}]`;
 
-    card.innerHTML = `
-      <div class="utterance-meta">
-        <span class="speaker-tag">${u.speaker}</span>
-        <span class="timestamp">${m}:${s}</span>
-      </div>
-      <div class="utterance-text">${u.text}</div>
+    row.innerHTML = `
+      <div class="col-time">${m}:${s}</div>
+      <div class="col-channel"><span class="channel-tag">${spkTag}</span></div>
+      <div class="col-text">${u.text}</div>
     `;
-    utteranceList.appendChild(card);
+    utteranceList.appendChild(row);
   });
 
-  // Render Strategic Hints
+  // Render Strategic Telemetry Hints
   if (data.hints && data.hints.length > 0) {
     hintsList.innerHTML = "";
-    data.hints.forEach((hint) => {
+    data.hints.forEach((hint, idx) => {
       const hCard = document.createElement("div");
       hCard.className = "hint-card";
+      const itemNum = (idx + 1).toString().padStart(2, "0");
       hCard.innerHTML = `
-        <span class="hint-category">${hint.category}</span>
+        <div class="hint-header">
+          <span class="hint-category">§ ${hint.category.toUpperCase()}</span>
+          <span class="hint-id">#${itemNum}</span>
+        </div>
         <h4>${hint.title}</h4>
         <p>${hint.content}</p>
       `;
@@ -352,7 +452,7 @@ if (sendGatewayBtn) {
     const confirmSend = confirm("Send this meeting synthesis to the Hermes Discord gateway on Beti?");
     if (!confirmSend) return;
 
-    sendGatewayBtn.textContent = "⏳ Sending...";
+    sendGatewayBtn.textContent = "SENDING...";
     sendGatewayBtn.disabled = true;
 
     try {
@@ -375,9 +475,8 @@ if (sendGatewayBtn) {
     } catch (err) {
       alert("Error sending to gateway: " + err.message);
     } finally {
-      sendGatewayBtn.textContent = "📤 Send to Discord";
+      sendGatewayBtn.textContent = "DISCORD ↗";
       sendGatewayBtn.disabled = false;
     }
   });
 }
-

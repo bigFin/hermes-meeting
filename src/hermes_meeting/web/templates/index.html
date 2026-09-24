@@ -3,27 +3,32 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hermes Meeting Companion</title>
+  <title>Hermes Meeting Companion // NOAA-NASA Log</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <header class="app-header">
     <div class="header-brand">
-      <span class="logo">🎙️</span>
-      <h1>Hermes Meeting</h1>
-      <span class="badge" id="engine-badge">Engine: Ready</span>
+      <div class="meta-tag">DOC: HM-8085 // OBSERVATION LOG</div>
+      <div class="brand-title-wrap">
+        <span class="brand-glyph">☷</span>
+        <h1>Hermes Meeting</h1>
+        <span class="badge" id="engine-badge">SYS: READY [RTX-3090]</span>
+      </div>
     </div>
+
     <div class="profile-selector">
-      <label for="profile-select">🤖 Strategist:</label>
+      <label for="profile-select">STRATEGIST:</label>
       <select id="profile-select" class="profile-dropdown" title="Choose which Hermes profile analyzes this meeting">
         <option value="main">main (Default)</option>
       </select>
     </div>
+
     <div class="header-actions">
-      <button id="theme-btn" class="btn-subtle" title="Toggle theme">🌙</button>
-      <button id="send-gateway-btn" class="btn-secondary" disabled title="Send meeting synthesis to Hermes Discord gateway (Beti)">📤 Send to Discord</button>
-      <button id="export-obsidian-btn" class="btn-secondary" disabled>Save to Obsidian</button>
-      <button id="download-md-btn" class="btn-secondary" disabled>Download .md</button>
+      <button id="theme-btn" class="btn-action" title="Toggle Paper / Blueprint theme">THEME: PAPER</button>
+      <button id="send-gateway-btn" class="btn-action" disabled title="Send meeting synthesis to Hermes Discord gateway (Beti)">DISCORD ↗</button>
+      <button id="export-obsidian-btn" class="btn-action" disabled>OBSIDIAN ↗</button>
+      <button id="download-md-btn" class="btn-action" disabled>EXPORT .MD</button>
     </div>
   </header>
 
@@ -32,36 +37,47 @@
     <section class="transcript-pane">
       <div class="control-bar">
         <div class="record-group">
-          <button id="record-btn" class="btn-primary record-btn">
+          <button id="record-btn" class="btn-record">
             <span class="record-dot"></span>
-            <span id="record-text">Start Recording</span>
+            <span id="record-text">START RECORDING</span>
           </button>
-          <span id="timer" class="timer">00:00</span>
+          <span id="timer" class="timer">MET 00:00</span>
         </div>
 
         <div class="audio-source-group">
-          <label for="audio-source-select">🎧 Source:</label>
+          <label for="audio-source-select">AUDIO INPUT:</label>
           <select id="audio-source-select" class="source-dropdown" title="Choose audio capture mode">
-            <option value="mic">🎙️ Physical Room (Mic Only)</option>
-            <option value="digital">💻 Digital Call (Mic + System Audio)</option>
+            <option value="mic">MIC ONLY [PHYSICAL ROOM]</option>
+            <option value="digital">MIXED [CALL + SYSTEM AUDIO]</option>
           </select>
         </div>
 
         <div class="upload-group">
-          <label for="audio-file-input" class="btn-subtle upload-label">
-            📁 Upload Audio
+          <label for="audio-file-input" class="upload-label">
+            ↑ INGEST AUDIO FILE
           </label>
           <input type="file" id="audio-file-input" accept="audio/*,.wav,.mp3,.m4a,.ogg,.flac" hidden>
         </div>
       </div>
 
-      <!-- Live Waveform canvas -->
-      <canvas id="visualizer" class="visualizer" height="48"></canvas>
+      <!-- Pointillist Sounder / Spectrograph Canvas -->
+      <div class="visualizer-box">
+        <div class="visualizer-bar-header">
+          <span class="chart-title">ACOUSTIC SOUNDER // POINTILLISM SPECTROGRAPH</span>
+          <span class="chart-meta">SAMPLE: 16.0 kHz MONO · FFT: 64</span>
+        </div>
+        <canvas id="visualizer" class="visualizer" height="52"></canvas>
+      </div>
 
-      <!-- Speaker Transcript Canvas -->
+      <!-- Speaker Transcript Table -->
       <div class="transcript-container" id="transcript-container">
+        <div class="table-header">
+          <span class="col-time">MET</span>
+          <span class="col-channel">CHANNEL</span>
+          <span class="col-text">OBSERVATION &amp; TRANSCRIPTION LOG</span>
+        </div>
         <div class="empty-state" id="empty-state">
-          <p>No meeting in progress. Start recording or upload a voice memo to begin.</p>
+          <p>[ LOG EMPTY — COMMENCE RECORDING OR INGEST AUDIO TO LOG TELEMETRY ]</p>
         </div>
         <div class="utterance-list" id="utterance-list"></div>
       </div>
@@ -70,16 +86,21 @@
     <!-- Right: Real-time Strategist & Knowledge Grounding -->
     <aside class="sidebar-pane">
       <div class="sidebar-header">
-        <h3>🧠 Hermes Strategist</h3>
-        <span class="subtle-tag">Live Knowledge</span>
+        <div class="sidebar-title">
+          <h3>STRATEGIC TELEMETRY</h3>
+          <span class="subtle-tag">REF: KNOWLEDGE_BASE</span>
+        </div>
       </div>
-      <p class="sidebar-desc">Real-time action items and context from your knowledge base as conversation happens.</p>
+      <p class="sidebar-desc">Real-time mission advisory bulletins and action items generated from active knowledge grounding.</p>
       
       <div class="hints-list" id="hints-list">
         <div class="hint-card placeholder">
-          <span class="hint-category">System</span>
-          <h4>Waiting for conversation...</h4>
-          <p>Key topics and decisions will automatically trigger notes and checks here.</p>
+          <div class="hint-header">
+            <span class="hint-category">§ STATUS</span>
+            <span class="hint-id">#00</span>
+          </div>
+          <h4>Awaiting conversation stream...</h4>
+          <p>Key topics, technical directives, and decisions will populate here in real time.</p>
         </div>
       </div>
     </aside>
