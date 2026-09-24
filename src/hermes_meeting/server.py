@@ -126,6 +126,20 @@ async def health():
     }
 
 
+@app.get("/api/profiles")
+async def list_profiles():
+    """Discover available Hermes profiles on the host."""
+    profiles = []
+    if settings.hermes_profiles_dir.exists():
+        for d in settings.hermes_profiles_dir.iterdir():
+            if d.is_dir() and ((d / "config.yaml").exists() or (d / "SOUL.md").exists()):
+                profiles.append(d.name)
+    if not profiles:
+        profiles = ["main", "analyst", "briefer", "voice-chat"]
+    profiles.sort()
+    return {"profiles": profiles, "default": settings.default_profile}
+
+
 class ObsidianExportRequest(BaseModel):
     title: str
     content: str
@@ -144,9 +158,11 @@ async def export_obsidian(req: ObsidianExportRequest):
 async def transcribe_audio(
     file: UploadFile = File(...),
     title: Optional[str] = Form("Meeting Notes"),
+    profile: Optional[str] = Form(None),
 ):
     global last_active_time
     last_active_time = time.monotonic()
+    selected_profile = profile or settings.default_profile
 
     try:
         content = await file.read()
@@ -155,7 +171,7 @@ async def transcribe_audio(
         logger.error("Failed to read audio file: %s", e)
         raise HTTPException(status_code=400, detail=f"Invalid audio format: {e}")
 
-    logger.info("Transcribing audio (%d samples, %.1fs)...", len(audio_data), len(audio_data) / settings.sample_rate)
+    logger.info("Transcribing audio (%d samples, %.1fs, profile=%s)...", len(audio_data), len(audio_data) / settings.sample_rate, selected_profile)
 
     # 1. Run ASR for word timestamps
     asr = get_asr_engine()
@@ -169,17 +185,18 @@ async def transcribe_audio(
     utterances = align_words_to_speakers(words, speaker_segments)
 
     # 4. Generate Scribe markdown
-    markdown = scribe.format_markdown(title or "Meeting", utterances)
+    markdown = scribe.format_markdown(title or "Meeting", utterances, profile=selected_profile)
 
     # 5. Extract strategic hints
     hints = [
         {"category": h.category, "title": h.title, "content": h.content, "source": h.source}
-        for h in strategist.analyze_recent(utterances)
+        for h in strategist.analyze_recent(utterances, profile=selected_profile)
     ]
 
     return {
         "ok": True,
         "title": title,
+        "profile": selected_profile,
         "utterances": [u.to_dict() for u in utterances],
         "markdown": markdown,
         "hints": hints,

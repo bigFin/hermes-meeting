@@ -53,10 +53,26 @@ class Settings(BaseSettings):
         description="Path to default Obsidian vault for meeting note exports"
     )
 
-    # Hermes Agent integration
+    # Hermes Agent & Profiles
     hermes_bin: Path = Field(
         default=Path.home() / ".local/bin/hermes",
         description="Path to Hermes executable"
+    )
+    hermes_profile_bin: Path = Field(
+        default=Path.home() / ".local/bin/hermes-profile",
+        description="Path to hermes-profile wrapper executable"
+    )
+    hermes_profiles_dir: Path = Field(
+        default=Path.home() / ".hermes/profiles",
+        description="Directory containing Hermes agent profiles"
+    )
+    default_profile: str = Field(
+        default="main",
+        description="Default Hermes profile to use for strategist and scribe"
+    )
+    gateway_webhook_url: str | None = Field(
+        default=None,
+        description="Optional Hermes gateway webhook URL to post meeting transcripts to"
     )
 
     model_config = SettingsConfigDict(env_prefix="HERMES_MEETING_")

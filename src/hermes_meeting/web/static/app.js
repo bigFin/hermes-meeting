@@ -18,6 +18,30 @@ const exportObsidianBtn = document.getElementById("export-obsidian-btn");
 const downloadMdBtn = document.getElementById("download-md-btn");
 const visualizerCanvas = document.getElementById("visualizer");
 const canvasCtx = visualizerCanvas.getContext("2d");
+const profileSelect = document.getElementById("profile-select");
+
+// Discover installed Hermes profiles on server
+async function loadProfiles() {
+  try {
+    const res = await fetch("/api/profiles");
+    if (res.ok) {
+      const data = await res.json();
+      if (profileSelect && data.profiles && data.profiles.length > 0) {
+        profileSelect.innerHTML = "";
+        data.profiles.forEach((p) => {
+          const opt = document.createElement("option");
+          opt.value = p;
+          opt.textContent = p + (p === data.default ? " (default)" : "");
+          if (p === data.default) opt.selected = true;
+          profileSelect.appendChild(opt);
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("Could not load profiles:", err);
+  }
+}
+loadProfiles();
 
 // Setup Visualizer sizing
 function resizeCanvas() {
@@ -122,6 +146,7 @@ async function uploadAudioBlob(blob) {
   const formData = new FormData();
   formData.append("file", blob, "recording.wav");
   formData.append("title", currentMeetingTitle);
+  if (profileSelect) formData.append("profile", profileSelect.value);
   await sendTranscriptionRequest(formData);
 }
 
@@ -129,6 +154,7 @@ async function uploadAudioFile(file) {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("title", file.name.replace(/\.[^/.]+$/, ""));
+  if (profileSelect) formData.append("profile", profileSelect.value);
   await sendTranscriptionRequest(formData);
 }
 
