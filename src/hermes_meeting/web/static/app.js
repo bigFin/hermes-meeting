@@ -4,12 +4,14 @@ let recordStartTime = null;
 let timerInterval = null;
 let audioContext = null;
 let analyser = null;
+let activeAudioStreams = [];
 let currentTranscriptMarkdown = "";
 let currentMeetingTitle = "Meeting " + new Date().toISOString().slice(0, 10);
 
 const recordBtn = document.getElementById("record-btn");
 const recordText = document.getElementById("record-text");
 const timerEl = document.getElementById("timer");
+const audioSourceSelect = document.getElementById("audio-source-select");
 const emptyState = document.getElementById("empty-state");
 const utteranceList = document.getElementById("utterance-list");
 const hintsList = document.getElementById("hints-list");
@@ -75,17 +77,69 @@ fileInput.addEventListener("change", async (e) => {
 });
 
 async function startRecording() {
+  activeAudioStreams = [];
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioChunks = [];
-    mediaRecorder = new MediaRecorder(stream);
+    const sourceMode = audioSourceSelect ? audioSourceSelect.value : "mic";
+    let recordStream = null;
 
-    // Audio Visualizer setup
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const source = audioContext.createMediaStreamSource(stream);
     analyser = audioContext.createAnalyser();
     analyser.fftSize = 64;
-    source.connect(analyser);
+
+    if (sourceMode === "digital") {
+      // 1. Microphone stream
+      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      activeAudioStreams.push(micStream);
+
+      // 2. System / screen audio stream
+      let displayStream = null;
+      try {
+        displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true,
+        });
+      } catch (displayErr) {
+        throw new Error("System audio capture cancelled or denied: " + displayErr.message);
+      }
+
+      const sysAudioTracks = displayStream.getAudioTracks();
+      if (sysAudioTracks.length === 0) {
+        displayStream.getTracks().forEach((track) => track.stop());
+        throw new Error("No system audio track selected. Make sure to check 'Share audio' or 'Also share tab audio' in the sharing dialog.");
+      }
+
+      // Stop video tracks immediately so we don't capture or process video frames
+      displayStream.getVideoTracks().forEach((track) => track.stop());
+      activeAudioStreams.push(displayStream);
+
+      // WebAudio Mixing
+      const mixedDest = audioContext.createMediaStreamDestination();
+      const mixerGain = audioContext.createGain();
+
+      const micSource = audioContext.createMediaStreamSource(micStream);
+      const sysSource = audioContext.createMediaStreamSource(displayStream);
+
+      micSource.connect(mixerGain);
+      sysSource.connect(mixerGain);
+
+      mixerGain.connect(analyser);
+      mixerGain.connect(mixedDest);
+
+      recordStream = mixedDest.stream;
+    } else {
+      // Physical Room (Mic only)
+      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      activeAudioStreams.push(micStream);
+
+      const micSource = audioContext.createMediaStreamSource(micStream);
+      micSource.connect(analyser);
+
+      recordStream = micStream;
+    }
+
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(recordStream);
+
     drawVisualizer();
 
     mediaRecorder.ondataavailable = (event) => {
@@ -97,18 +151,37 @@ async function startRecording() {
     mediaRecorder.onstop = async () => {
       const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
       await uploadAudioBlob(audioBlob);
-      stream.getTracks().forEach((track) => track.stop());
+      activeAudioStreams.forEach((stream) => {
+        stream.getTracks().forEach((track) => track.stop());
+      });
+      activeAudioStreams = [];
+      if (audioContext && audioContext.state !== "closed") {
+        audioContext.close();
+      }
+      if (audioSourceSelect) audioSourceSelect.disabled = false;
     };
 
     mediaRecorder.start();
+    if (audioSourceSelect) audioSourceSelect.disabled = true;
     recordBtn.classList.add("recording");
     recordText.textContent = "Stop & Transcribe";
 
     recordStartTime = Date.now();
     timerInterval = setInterval(updateTimer, 1000);
   } catch (err) {
-    console.error("Microphone access error:", err);
-    alert("Could not access microphone: " + err.message);
+    console.error("Audio recording error:", err);
+    activeAudioStreams.forEach((stream) => {
+      stream.getTracks().forEach((track) => track.stop());
+    });
+    activeAudioStreams = [];
+    if (audioContext && audioContext.state !== "closed") {
+      audioContext.close();
+    }
+    if (audioSourceSelect) audioSourceSelect.disabled = false;
+    recordBtn.classList.remove("recording");
+    recordText.textContent = "Start Recording";
+    clearInterval(timerInterval);
+    alert(err.message || "Failed to start recording.");
   }
 }
 
@@ -118,6 +191,7 @@ function stopRecording() {
     recordBtn.classList.remove("recording");
     recordText.textContent = "Start Recording";
     clearInterval(timerInterval);
+    if (audioSourceSelect) audioSourceSelect.disabled = false;
   }
 }
 
