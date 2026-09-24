@@ -19,6 +19,7 @@ const downloadMdBtn = document.getElementById("download-md-btn");
 const visualizerCanvas = document.getElementById("visualizer");
 const canvasCtx = visualizerCanvas.getContext("2d");
 const profileSelect = document.getElementById("profile-select");
+const sendGatewayBtn = document.getElementById("send-gateway-btn");
 
 // Discover installed Hermes profiles on server
 async function loadProfiles() {
@@ -28,12 +29,19 @@ async function loadProfiles() {
       const data = await res.json();
       if (profileSelect && data.profiles && data.profiles.length > 0) {
         profileSelect.innerHTML = "";
+        const groups = {};
         data.profiles.forEach((p) => {
+          const groupName = p.is_remote ? "🌐 Beti Gateway (Avenue Intelligence)" : "🖥️ Local Sika";
+          if (!groups[groupName]) {
+            groups[groupName] = document.createElement("optgroup");
+            groups[groupName].label = groupName;
+            profileSelect.appendChild(groups[groupName]);
+          }
           const opt = document.createElement("option");
-          opt.value = p;
-          opt.textContent = p + (p === data.default ? " (default)" : "");
-          if (p === data.default) opt.selected = true;
-          profileSelect.appendChild(opt);
+          opt.value = p.id;
+          opt.textContent = p.name;
+          if (p.profile === data.default || p.id === data.default) opt.selected = true;
+          groups[groupName].appendChild(opt);
         });
       }
     }
@@ -194,6 +202,7 @@ function renderTranscript(data) {
 
   exportObsidianBtn.disabled = false;
   downloadMdBtn.disabled = false;
+  if (sendGatewayBtn) sendGatewayBtn.disabled = false;
 
   data.utterances.forEach((u) => {
     const card = document.createElement("div");
@@ -262,3 +271,39 @@ exportObsidianBtn.addEventListener("click", async () => {
     alert(`Failed to save to Obsidian: ${err.message}`);
   }
 });
+
+if (sendGatewayBtn) {
+  sendGatewayBtn.addEventListener("click", async () => {
+    if (!currentTranscriptMarkdown) return;
+    const confirmSend = confirm("Send this meeting synthesis to the Hermes Discord gateway on Beti?");
+    if (!confirmSend) return;
+
+    sendGatewayBtn.textContent = "⏳ Sending...";
+    sendGatewayBtn.disabled = true;
+
+    try {
+      const res = await fetch("/api/send-gateway", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gateway: "beti",
+          message: currentTranscriptMarkdown,
+          subject: currentMeetingTitle,
+          target: "discord",
+        }),
+      });
+      const result = await res.json();
+      if (result.ok) {
+        alert(result.message || "Delivered to Beti Discord gateway!");
+      } else {
+        alert("Failed to deliver to gateway: " + result.error);
+      }
+    } catch (err) {
+      alert("Error sending to gateway: " + err.message);
+    } finally {
+      sendGatewayBtn.textContent = "📤 Send to Discord";
+      sendGatewayBtn.disabled = false;
+    }
+  });
+}
+

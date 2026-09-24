@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -73,6 +74,19 @@ class Settings(BaseSettings):
     gateway_webhook_url: str | None = Field(
         default=None,
         description="Optional Hermes gateway webhook URL to post meeting transcripts to"
+    )
+    remote_gateways: dict[str, dict[str, Any]] = Field(
+        default={
+            "beti": {
+                "host": "admin@beti",
+                "hermes_home": "/home/admin/.local/state/hermes/.hermes",
+                "hermes_bin": "/home/admin/.local/state/hermes/hermes-agent/venv/bin/hermes",
+                "env_file": "/run/secrets/rendered/hermes/env",
+                "label": "Beti Gateway (Avenue Intelligence)",
+                "profiles": ["operations", "professional", "team", "default"],
+            }
+        },
+        description="Remote Hermes gateways reachable via SSH",
     )
 
     model_config = SettingsConfigDict(env_prefix="HERMES_MEETING_")

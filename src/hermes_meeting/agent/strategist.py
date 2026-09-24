@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import List
 from ..audio.aligner import Utterance
 from ..config import settings
+from .gateway import RemoteGatewayManager
 
 logger = logging.getLogger(__name__)
 
@@ -22,38 +23,15 @@ class StrategicHint:
 class MeetingStrategist:
     """
     Watches incoming transcript utterances, checks QMD / knowledge bases,
-    and queries the selected Hermes agent profile for real-time strategic context.
+    and queries the selected Hermes agent profile (local or remote gateway) for real-time strategic context.
     """
 
     def __init__(self):
         self.qmd_bin = shutil.which("qmd")
+        self.gateway_mgr = RemoteGatewayManager()
 
     def query_hermes_agent(self, profile: str, prompt: str) -> str | None:
-        bin_path = settings.hermes_profile_bin
-        if not bin_path or not bin_path.exists():
-            bin_path = settings.hermes_bin
-
-        if not bin_path or not bin_path.exists():
-            return None
-
-        cmd = [str(bin_path)]
-        if bin_path.name == "hermes-profile":
-            cmd.extend([profile, "chat", "-Q", "-q", prompt])
-        else:
-            cmd.extend(["chat", "-Q", "-q", prompt])
-
-        try:
-            proc = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=12,
-            )
-            if proc.returncode == 0 and proc.stdout.strip():
-                return proc.stdout.strip()
-        except Exception as e:
-            logger.debug("Hermes query failed or timed out: %s", e)
-        return None
+        return self.gateway_mgr.query_agent(profile, prompt)
 
     def analyze_recent(self, utterances: List[Utterance], profile: str = "main") -> List[StrategicHint]:
         if not utterances:

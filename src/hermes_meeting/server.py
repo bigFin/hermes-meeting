@@ -126,18 +126,36 @@ async def health():
     }
 
 
+from .agent.gateway import RemoteGatewayManager
+
+gateway_mgr = RemoteGatewayManager()
+
+
 @app.get("/api/profiles")
 async def list_profiles():
-    """Discover available Hermes profiles on the host."""
-    profiles = []
-    if settings.hermes_profiles_dir.exists():
-        for d in settings.hermes_profiles_dir.iterdir():
-            if d.is_dir() and ((d / "config.yaml").exists() or (d / "SOUL.md").exists()):
-                profiles.append(d.name)
-    if not profiles:
-        profiles = ["main", "analyst", "briefer", "voice-chat"]
-    profiles.sort()
+    """Discover available Hermes profiles across remote gateways and local host."""
+    profiles = gateway_mgr.list_all_profiles()
     return {"profiles": profiles, "default": settings.default_profile}
+
+
+class GatewaySendRequest(BaseModel):
+    gateway: str = "beti"
+    message: str
+    subject: Optional[str] = "Meeting Notes"
+    target: Optional[str] = "discord"
+
+
+@app.post("/api/send-gateway")
+async def send_to_gateway(req: GatewaySendRequest):
+    success = gateway_mgr.send_to_gateway(
+        gateway_key=req.gateway,
+        message=req.message,
+        subject=req.subject or "Meeting Notes",
+        target=req.target or "discord",
+    )
+    if success:
+        return {"ok": True, "message": f"Successfully delivered to {req.gateway} ({req.target})"}
+    return {"ok": False, "error": f"Failed to send to {req.gateway}. Check SSH connectivity to gateway."}
 
 
 class ObsidianExportRequest(BaseModel):

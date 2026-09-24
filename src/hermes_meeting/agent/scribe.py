@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List
 from ..audio.aligner import Utterance
 from ..config import settings
+from .gateway import RemoteGatewayManager
 
 logger = logging.getLogger(__name__)
 
@@ -16,16 +17,12 @@ class MeetingScribe:
 
     def __init__(self, vault_dir: Path | None = None):
         self.vault_dir = vault_dir or settings.obsidian_vault_dir
+        self.gateway_mgr = RemoteGatewayManager()
 
     def generate_ai_summary(self, profile: str, utterances: List[Utterance]) -> str | None:
-        bin_path = settings.hermes_profile_bin
-        if not bin_path or not bin_path.exists():
-            bin_path = settings.hermes_bin
-
-        if not bin_path or not bin_path.exists() or not utterances:
+        if not utterances:
             return None
 
-        # Build transcript text for prompt
         transcript_text = "\n".join(f"{u.speaker}: {u.text}" for u in utterances)
         prompt = (
             f"You are the '{profile}' scribe. Synthesize this meeting transcript into:\n"
@@ -34,20 +31,7 @@ class MeetingScribe:
             f"3. Action Items (- [ ] checkbox format)\n\n"
             f"Transcript:\n{transcript_text[:4000]}"
         )
-
-        cmd = [str(bin_path)]
-        if bin_path.name == "hermes-profile":
-            cmd.extend([profile, "chat", "-Q", "-q", prompt])
-        else:
-            cmd.extend(["chat", "-Q", "-q", prompt])
-
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=25)
-            if proc.returncode == 0 and proc.stdout.strip():
-                return proc.stdout.strip()
-        except Exception as e:
-            logger.debug("AI summary generation timed out or failed: %s", e)
-        return None
+        return self.gateway_mgr.query_agent(profile, prompt)
 
     def format_markdown(
         self,

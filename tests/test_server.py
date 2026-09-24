@@ -16,3 +16,14 @@ def test_index_page():
     response = client.get("/")
     assert response.status_code == 200
     assert "Hermes Meeting" in response.text
+
+
+def test_list_profiles():
+    response = client.get("/api/profiles")
+    assert response.status_code == 200
+    data = response.json()
+    assert "profiles" in data
+    # Check that remote beti gateway profiles are included
+    profile_ids = [p["id"] for p in data["profiles"]]
+    assert any("beti:" in pid for pid in profile_ids)
+
